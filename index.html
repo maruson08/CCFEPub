@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>나만의 AI 친구 만들기 - 텍스트 코딩 체험 부스</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div
+      id="time"
+      style="
+        background-color: black;
+        opacity: 0.5;
+        color: white;
+        text-align: center;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        width: 100vw;
+        z-index: 1000;
+        position: fixed;
+        font-size: xx-large;
+        display: none;
+      "
+    >
+      체험이 종료 되었습니다. 감사합니다!
+    </div>
+    <div class="container">
+      <a href="block.html">Block Coding</a>
+      <h1>나만의 AI 챗봇 만들기</h1>
+      <p>
+        설명서의 텍스트 코딩 명령어를 입력하고 AI 챗봇을 커스터마이징하세요.
+        (중/고등학생용 체험)
+      </p>
+
+      <div class="code-editor">
+        <h2 style="display: flex; justify-content: space-between">
+          Code<button id="runCommandsButton">Run</button>
+        </h2>
+
+        <textarea
+          id="commandInput"
+          rows="15"
+          placeholder='여기에 명령어를 입력하세요. 예: setName("지니"), startChatbot()'
+        ></textarea>
+        <span style="margin-right: 10px">Examples</span>
+        <button class="codeExamplesButton">Basic</button>
+        <button class="codeExamplesButton">Professional</button>
+        <button class="codeExamplesButton">Boyfriend</button>
+        <button class="codeExamplesButton">Girlfriend</button>
+      </div>
+
+      <div class="output-area">
+        <h2>System log</h2>
+        <pre id="outputLog">
+명령어를 입력하고 'Run' 버튼을 눌러 설정을 시작하세요. 'showSystemPrompt()'로 프롬프트를 확인하고, 'startChatbot()'으로 대화를 시작할 수 있습니다.</pre
+        >
+      </div>
+
+      <div class="chat-area hidden" id="chatContainer">
+        <h2>AI 챗봇 체험 (<span id="chatbotName"></span>)</h2>
+        <div class="chat-log" id="chatLog"></div>
+        <div class="chat-input">
+          <input
+            type="text"
+            id="userInput"
+            placeholder="AI 친구에게 말을 걸어보세요..."
+            disabled
+          />
+          <button id="sendMessageButton" disabled>보내기</button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="script.js"></script>
+  </body>
+</html>

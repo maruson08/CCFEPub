@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>나만의 AI 친구 만들기 - 블록 코딩 체험 부스</title>
+
+    <link rel="stylesheet" href="style.css" />
+
+    <script src="https://cdn.jsdelivr.net/npm/blockly/blockly.min.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <a href="index.html">Text Coding</a>
+      <h1>나만의 AI 챗봇 만들기</h1>
+      <p>코드를 블록으로 조립하여 AI 챗봇을 커스터마이징하세요.</p>
+
+      <div class="code-editor">
+        <h2 style="display: flex;justify-content: space-between;">Block coding workspace        <button id="runCommandsButton">Run</button></h2>
+        <div id="blocklyDiv" style="height: 480px; width: 100%"></div>
+
+
+        <xml id="toolbox" style="display: none">
+            <category name="기본 설정" colour="230">
+                <block type="chatbot_set_name">
+                    <value name="NAME"><block type="text"><field name="TEXT">블록지니</field></block></value>
+                </block>
+                <block type="chatbot_set_role">
+                    <value name="ROLE"><block type="text"><field name="TEXT">친절한 AI 챗봇</field></block></value>
+                </block>
+                <block type="chatbot_set_personality">
+                    <value name="PERSONALITY"><block type="text"><field name="TEXT">다정하고 호기심 많은</field></block></value>
+                </block>
+                <block type="chatbot_set_tone">
+                    <value name="TONE"><block type="text"><field name="TEXT">편안하고 친구같은 말투</field></block></value>
+                </block>
+            </category>
+            
+            <category name="대화 규칙" colour="330">
+                <block type="chatbot_when_says">
+                    <value name="TRIGGER"><block type="text"></block></value>
+                    <value name="REPLY"><block type="text"></block></value>
+                </block>
+                <block type="chatbot_when_includes">
+                    <value name="KEYWORD"><block type="text"></block></value>
+                    <value name="REPLY"><block type="text"></block></value>
+                </block>
+                <block type="chatbot_default_reply">
+                    <value name="REPLY"><block type="text"><field name="TEXT">죄송해요, 이 말은 잘 모르겠어요.</field></block></value>
+                </block>
+            </category>
+
+            <category name="제한 및 안전" colour="30">
+                <block type="chatbot_limit_length"></block>
+                <block type="chatbot_use_emoji"></block>
+                <block type="chatbot_block_personal_info"></block>
+                <block type="chatbot_block_sensitive_topics"></block>
+                <block type="chatbot_safe_reply">
+                    <value name="REPLY"><block type="text"><field name="TEXT">이 주제는 제가 대답할 수 없는 민감한 주제예요.</field></block></value>
+                </block>
+            </category>
+
+            <category name="고급 기능" colour="180">
+                <block type="chatbot_add_knowledge">
+                    <value name="SUBJECT"><block type="text"></block></value>
+                    <value name="DESCRIPTION"><block type="text"></block></value>
+                </block>
+                <block type="chatbot_add_example"></block>
+                <block type="chatbot_show_system_prompt"></block>
+            </category>
+
+            <category name="실행" colour="120">
+                <block type="chatbot_start"></block>
+            </category>
+
+            <category name="입력" colour="20">
+                <block type="text"></block>
+                <block type="math_number"></block>
+            </category>
+        </xml>
+      </div>
+      <div class="output-area">
+        <h2>생성된 텍스트 코드 (출력 로그)</h2>
+        <pre
+          id="codeOutput"
+          style="
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 100px;
+            overflow-y: scroll;
+            display: none;
+          "
+        ></pre>
+        <pre id="outputLog">
+명령어를 입력하고 'Run' 버튼을 눌러 설정을 시작하세요. 챗봇을 실행하려면 반드시 '챗봇 시작하기' 블록이 포함되어야 합니다.</pre
+        >
+      </div>
+
+      <div class="chat-area hidden" id="chatContainer">
+        <h2>AI 챗봇 체험 (<span id="chatbotName"></span>)</h2>
+        <div class="chat-log" id="chatLog"></div>
+        <div class="chat-input">
+          <input
+            type="text"
+            id="userInput"
+            placeholder="AI 친구에게 말을 걸어보세요..."
+            disabled
+          />
+          <button id="sendMessageButton" disabled>보내기</button>
+        </div>
+      </div>
+    </div>
+<script src="https://cdn.jsdelivr.net/npm/blockly/blockly.min.js"></script> 
+    
+    <script src="https://cdn.jsdelivr.net/npm/blockly/blockly_compressed.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/blockly/blocks_compressed.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/blockly/javascript_compressed.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/blockly/msg/ko.js"></script> <script src="blockly_blocks.js"></script>
+    
+    <script type="module" src="blockly_script.js"></script>
+    
+</body>
+  </body>
+</html>
