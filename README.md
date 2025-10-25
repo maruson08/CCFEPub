@@ -17,6 +17,6 @@
 7. 생성된 키의 키 부분을 클릭하고 키를 복사한다.
    ![myKey](/img/myKey.png)
 8. [CCFEPub](https://maruson08.github.io/CCFEPub/)에 접속해 처음 뜨는 창에 복사한 키를 붙여넣고 사용한다.
-   ![alt text](ccfepub.png)
+   ![alt text](/img/ccfepub.png)
 
 © 2025. Wonhee Son All rights reserved
