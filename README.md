@@ -1,6 +1,6 @@
 # CCFEPub
 ## Custom Chatbot For Education
-- LLM, 챗봇 교육을 위한 프로젝트
+- [LLM, 챗봇 교육을 위한 프로젝트](https://github.com/CWFEPub/CCFEPub)
 - 간단한 명령어로 챗봇 페르소나 설정
 - GEMINI API 사용
 
