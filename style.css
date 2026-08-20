@@ -113,3 +113,25 @@ input:focus, textarea:focus, button:focus-visible, a:focus-visible { outline: 3p
   #blocklyDiv { height: 500px; }
   .message { max-width: 90%; }
 }
+
+.project-actions { margin-bottom: 22px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-block: 1px solid var(--line); }
+.project-actions > div:first-child { display: flex; align-items: baseline; gap: 10px; }
+.project-actions span { color: var(--muted); font-size: .78rem; }
+.file-button { display: inline-flex; align-items: center; justify-content: center; }
+.inspector { margin-bottom: 24px; }
+.inspector-state { margin: 0 0 12px; color: var(--success); font-size: .8rem; }
+.inspector.has-errors .inspector-state { color: var(--error); }
+.inspector-grid { margin: 0; border-top: 1px solid var(--line); }
+.inspector-grid > div { padding: 10px 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; border-bottom: 1px solid var(--line); }
+.inspector-grid dt { color: var(--muted); font-size: .82rem; }
+.inspector-grid dd { margin: 0; max-width: 220px; overflow-wrap: anywhere; text-align: right; font-weight: 720; }
+.test-heading { margin: 26px 0 14px; }
+.workspace-grid .output-log { min-height: 190px; max-height: 330px; }
+.block-results { margin-top: 0; }
+
+@media (max-width: 520px) {
+  .project-actions { align-items: stretch; flex-direction: column; }
+  .project-actions .toolbar { display: grid; grid-template-columns: 1fr 1fr; }
+  .project-actions .button { width: 100%; }
+  .inspector-grid dd { max-width: 150px; }
+}

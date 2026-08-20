@@ -121,6 +121,7 @@ export function createChatbotApp({ onStatus, loadSdk = loadGeminiSdk }) {
         elements.apiKey.focus();
         return false;
       }
+      status("Gemini를 시작하는 중입니다…", "info");
       try {
         const { GoogleGenAI } = await loadSdk();
         if (typeof GoogleGenAI !== "function") {

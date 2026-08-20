@@ -1,12 +1,23 @@
 /* global Blockly */
-import { operationsToCommandText, processOperations } from "./engine.js";
+import { operationsToCommandText, parseCommandText, processOperations } from "./engine.js";
 import { createChatbotApp } from "./app.js";
+import {
+  blockRecordToOperation,
+  operationsToBlockRecords,
+} from "./block_mapping.js";
+import {
+  createProject,
+  migrateLegacyProject,
+  saveProject,
+  updateProject,
+  validateProject,
+} from "./project.js";
+import { downloadProject, readProjectFile, renderInspector } from "./project_ui.js";
 
-const WORKSPACE_STORAGE = "ccfepub.blocklyWorkspace.v2";
 const outputLog = document.querySelector("#outputLog");
 const statusArea = document.querySelector("#statusArea");
-let lastOperations = [];
-let saveTimer = null;
+const runButton = document.querySelector("#runCommandsButton");
+let currentProject = null;
 
 function setStatus(message, kind = "info") {
   const icons = { success: "✓", error: "⚠", warning: "⚠", info: "•" };
@@ -17,169 +28,225 @@ function setStatus(message, kind = "info") {
 const app = createChatbotApp({ onStatus: setStatus });
 
 if (typeof Blockly === "undefined") {
-  setStatus("Blockly 라이브러리를 불러오지 못했습니다. 네트워크를 확인해 주세요.", "error");
-  throw new Error("Blockly is not available");
+  setStatus("Block editor could not load Blockly. Text Editor is still available.", "error");
+  document.querySelectorAll("[data-blockly-action]").forEach((button) => { button.disabled = true; });
+} else {
+  initializeBlockEditor();
 }
 
-const workspace = Blockly.inject("blocklyDiv", {
-  toolbox: document.querySelector("#toolbox"),
-  trashcan: true,
-  scrollbars: true,
-  renderer: "zelos",
-  grid: { spacing: 24, length: 3, colour: "#d4d4cf", snap: true },
-  zoom: { controls: true, wheel: true, startScale: 0.9, maxScale: 1.4, minScale: 0.5 },
-});
+function initializeBlockEditor() {
+  const workspace = Blockly.inject("blocklyDiv", {
+    toolbox: document.querySelector("#toolbox"),
+    trashcan: true,
+    scrollbars: true,
+    renderer: "zelos",
+    grid: { spacing: 24, length: 3, colour: "#d4d4cf", snap: true },
+    zoom: { controls: true, wheel: true, startScale: 0.9, maxScale: 1.4, minScale: 0.5 },
+  });
+  let applyingWorkspace = false;
+  let saveTimer = null;
 
-function loadDefaultWorkspace() {
-  const xmlText = `<xml xmlns="https://developers.google.com/blockly/xml">
-    <block type="chatbot_set_name" x="32" y="32"><field name="NAME">블록지니</field><next>
-      <block type="chatbot_set_role"><field name="ROLE">친절한 코딩 멘토</field><next>
-        <block type="chatbot_when_says"><field name="TRIGGER">안녕</field><field name="REPLY">안녕하세요! 블록 코딩 시작해 볼까요? 😊</field><next>
-          <block type="chatbot_start"></block>
-        </next></block>
-      </next></block>
-    </next></block>
-  </xml>`;
-  const dom = Blockly.utils.xml.textToDom(xmlText);
-  Blockly.Xml.domToWorkspace(dom, workspace);
-}
+  const defaultOperations = [
+    { type: "setName", value: "블록지니" },
+    { type: "setRole", value: "친절한 코딩 멘토" },
+    { type: "addRule", match: "exact", trigger: "안녕", reply: "안녕하세요! 블록 코딩 시작해 볼까요? 😊" },
+    { type: "start" },
+  ];
 
-function restoreWorkspace() {
-  try {
-    const raw = localStorage.getItem(WORKSPACE_STORAGE);
-    if (!raw) {
-      loadDefaultWorkspace();
-      return;
+  function blockToRecord(block) {
+    const fields = {};
+    for (const input of block.inputList || []) {
+      for (const field of input.fieldRow || []) {
+        if (field.name) fields[field.name] = field.getValue();
+      }
     }
-    const saved = JSON.parse(raw);
+    return { type: block.type, fields };
+  }
+
+  function workspaceToOperations() {
+    const operations = [];
+    for (const top of workspace.getTopBlocks(true)) {
+      let block = top;
+      while (block) {
+        operations.push(blockRecordToOperation(blockToRecord(block)));
+        block = block.getNextBlock();
+      }
+    }
+    return operations;
+  }
+
+  function operationsToWorkspace(operations) {
+    const records = operationsToBlockRecords(operations);
+    applyingWorkspace = true;
+    Blockly.Events.disable();
+    try {
+      workspace.clear();
+      let previous = null;
+      let stackY = 32;
+      records.forEach((item, index) => {
+        const block = workspace.newBlock(item.type);
+        Object.entries(item.fields).forEach(([name, value]) => block.setFieldValue(String(value), name));
+        block.initSvg();
+        block.render();
+        if (previous?.nextConnection && block.previousConnection) {
+          previous.nextConnection.connect(block.previousConnection);
+        } else {
+          block.moveBy(36, stackY);
+          stackY += 110 + index * 4;
+        }
+        previous = block;
+      });
+    } finally {
+      Blockly.Events.enable();
+      applyingWorkspace = false;
+      Blockly.svgResize(workspace);
+    }
+  }
+
+  function convertLegacyBlockly(source) {
+    const saved = JSON.parse(source);
+    workspace.clear();
     if (saved.format === "json" && Blockly.serialization?.workspaces) {
       Blockly.serialization.workspaces.load(saved.data, workspace);
     } else if (saved.format === "xml") {
       Blockly.Xml.domToWorkspace(Blockly.utils.xml.textToDom(saved.data), workspace);
     } else {
-      throw new Error("지원하지 않는 저장 형식입니다");
+      throw new Error("Unsupported legacy Blockly format.");
     }
-  } catch (error) {
-    console.warn("Saved Blockly workspace could not be restored:", error);
-    workspace.clear();
-    loadDefaultWorkspace();
-    try { localStorage.removeItem(WORKSPACE_STORAGE); } catch { /* Ignore. */ }
-    setStatus("저장된 블록을 복원할 수 없어 기본 예제를 열었습니다.", "warning");
+    return workspaceToOperations();
   }
-}
 
-function saveWorkspace() {
-  try {
-    const saved = Blockly.serialization?.workspaces
-      ? { format: "json", data: Blockly.serialization.workspaces.save(workspace) }
-      : { format: "xml", data: Blockly.Xml.domToText(Blockly.Xml.workspaceToDom(workspace)) };
-    localStorage.setItem(WORKSPACE_STORAGE, JSON.stringify(saved));
-  } catch (error) {
-    console.warn("Blockly workspace could not be saved:", error);
-    setStatus("블록 자동 저장에 실패했습니다.", "warning");
+  function saveOperations(operations, editorMode = "block") {
+    currentProject = currentProject
+      ? updateProject(currentProject, operations, editorMode)
+      : createProject(operations, { editorMode });
+    saveProject(localStorage, currentProject);
+    renderInspector(currentProject.operations);
+    app.setConfig(processOperations(currentProject.operations).config);
+    return currentProject;
   }
-}
 
-function blockToOperation(block) {
-  const field = (name) => block.getFieldValue(name) || "";
-  switch (block.type) {
-    case "chatbot_set_name": return { type: "setName", value: field("NAME") };
-    case "chatbot_set_role": return { type: "setRole", value: field("ROLE") };
-    case "chatbot_set_personality": return { type: "setPersonality", value: field("PERSONALITY") };
-    case "chatbot_set_tone": return { type: "setTone", value: field("TONE") };
-    case "chatbot_when_says": return { type: "addRule", match: "exact", trigger: field("TRIGGER"), reply: field("REPLY") };
-    case "chatbot_when_includes": return { type: "addRule", match: "includes", trigger: field("KEYWORD"), reply: field("REPLY") };
-    case "chatbot_default_reply": return { type: "setDefaultReply", value: field("REPLY") };
-    case "chatbot_limit_length": return { type: "setLimitLength", value: Number(field("LENGTH")) };
-    case "chatbot_use_emoji": return { type: "setUseEmoji", value: field("USE") === "TRUE" };
-    case "chatbot_block_personal_info": return { type: "blockPersonalInfo" };
-    case "chatbot_block_sensitive_topics": return { type: "setSensitiveTopics", topics: field("TOPICS").split(/[,\s]+/).filter(Boolean) };
-    case "chatbot_safe_reply": return { type: "setSafeReply", value: field("REPLY") };
-    case "chatbot_add_knowledge": return { type: "addKnowledge", subject: field("SUBJECT"), description: field("DESCRIPTION") };
-    case "chatbot_add_example": return { type: "addExample", user: field("USER"), assistant: field("ASSISTANT") };
-    case "chatbot_show_system_prompt": return { type: "preview" };
-    case "chatbot_start": return { type: "start" };
-    default: return null;
-  }
-}
-
-function collectOperations() {
-  const operations = [];
-  const unknown = [];
-  const stacks = workspace.getTopBlocks(true);
-  for (const top of stacks) {
-    let block = top;
-    while (block) {
-      const operation = blockToOperation(block);
-      if (operation) operations.push(operation);
-      else unknown.push(block.type);
-      block = block.getNextBlock();
+  function collectAndSave({ report = true } = {}) {
+    try {
+      const operations = workspaceToOperations();
+      saveOperations(operations);
+      if (report) {
+        outputLog.textContent = operationsToCommandText(operations) || "연결된 챗봇 블록이 없습니다.";
+        setStatus(`${operations.length}개 블록을 canonical project에 적용했습니다.`, "success");
+      }
+      return { operations, ...processOperations(operations), errors: [] };
+    } catch (error) {
+      renderInspector(currentProject?.operations || [], { error: "block-errors" });
+      if (report) setStatus(`블록을 변환할 수 없습니다: ${error.message}`, "error");
+      return { operations: [], errors: [error] };
     }
   }
-  return { operations, unknown };
-}
 
-function prepare() {
-  const { operations, unknown } = collectOperations();
-  lastOperations = operations;
-  const result = processOperations(operations);
-  app.setConfig(result.config);
-  const commands = operationsToCommandText(operations);
-  outputLog.textContent = commands || "연결된 챗봇 블록이 없습니다.";
-  if (unknown.length) setStatus(`지원하지 않는 블록을 건너뛰었습니다: ${[...new Set(unknown)].join(", ")}`, "warning");
-  else setStatus(`${operations.length}개 블록을 공통 엔진에 적용했습니다.`, "success");
-  return result;
-}
-
-async function runEditor() {
-  const runButton = document.querySelector("#runCommandsButton");
-  try {
-    runButton.disabled = true;
-    const result = prepare();
-    if (result.actions.start && !(await app.start())) return;
-    if (result.actions.preview) app.showPreview();
-  } catch (error) {
-    console.error("Block editor Run failed:", error);
-    setStatus(
-      "실행 중 오류가 발생했습니다. 브라우저 console의 진단 정보를 확인해 주세요.",
-      "error",
-    );
-  } finally {
-    runButton.disabled = false;
+  async function runEditor() {
+    try {
+      runButton.disabled = true;
+      const result = collectAndSave();
+      if (result.errors.length) return;
+      if (result.actions.start && !(await app.start())) return;
+      if (result.actions.preview) app.showPreview();
+    } catch (error) {
+      console.error("Block editor Run failed:", error);
+      setStatus(`실행 중 오류가 발생했습니다: ${error.message}`, "error");
+    } finally {
+      runButton.disabled = false;
+    }
   }
-}
 
-async function copyCommands() {
-  prepare();
-  try {
-    await navigator.clipboard.writeText(operationsToCommandText(lastOperations));
-    setStatus("생성된 명령어를 복사했습니다.", "success");
-  } catch {
-    setStatus("클립보드 복사에 실패했습니다. 브라우저 권한을 확인해 주세요.", "error");
+  function initializeProject() {
+    let migration;
+    try {
+      migration = migrateLegacyProject(localStorage, {
+        preferredMode: "block",
+        parseLegacyText: parseCommandText,
+        convertLegacyBlockly,
+      });
+    } catch (error) {
+      migration = { project: null, warnings: [error.message] };
+    }
+    currentProject = migration.project;
+    if (!currentProject) {
+      currentProject = createProject(defaultOperations, { editorMode: "block" });
+      if (!migration.blocked) saveProject(localStorage, currentProject);
+    }
+    try {
+      operationsToWorkspace(currentProject.operations);
+      renderInspector(currentProject.operations);
+      app.setConfig(processOperations(currentProject.operations).config);
+      outputLog.textContent = operationsToCommandText(currentProject.operations);
+      if (migration.migratedFrom) setStatus(`기존 ${migration.migratedFrom} 작업을 project format v1으로 이전했습니다.`, "success");
+      else if (migration.warnings?.length) setStatus(migration.warnings.join("\n"), "warning");
+    } catch (error) {
+      setStatus(`이 프로젝트를 Block Editor에서 열 수 없습니다: ${error.message}`, "error");
+    }
   }
-}
 
-restoreWorkspace();
-workspace.addChangeListener((event) => {
-  if (event.isUiEvent) return;
-  window.clearTimeout(saveTimer);
-  saveTimer = window.setTimeout(saveWorkspace, 180);
-});
-window.addEventListener("resize", () => Blockly.svgResize(workspace));
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+  workspace.addChangeListener((event) => {
+    if (applyingWorkspace || event.isUiEvent) return;
+    window.clearTimeout(saveTimer);
+    saveTimer = window.setTimeout(() => collectAndSave({ report: false }), 300);
+  });
+  window.addEventListener("resize", () => Blockly.svgResize(workspace));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      runEditor();
+    }
+  });
+  runButton.addEventListener("click", runEditor);
+  document.querySelector("#previewPromptButton").addEventListener("click", () => {
+    const result = collectAndSave();
+    if (!result.errors.length) app.showPreview();
+  });
+  document.querySelector("#copyCommandsButton").addEventListener("click", async () => {
+    const result = collectAndSave();
+    if (result.errors.length) return;
+    try {
+      await navigator.clipboard.writeText(operationsToCommandText(result.operations));
+      setStatus("생성된 명령어를 복사했습니다.", "success");
+    } catch { setStatus("클립보드 복사에 실패했습니다.", "error"); }
+  });
+  document.querySelector("#resetWorkspaceButton").addEventListener("click", () => {
+    if (!window.confirm("현재 프로젝트를 지우고 기본 예제로 돌아갈까요?")) return;
+    operationsToWorkspace(defaultOperations);
+    currentProject = null;
+    collectAndSave();
+  });
+  document.querySelector("#switchToText").addEventListener("click", (event) => {
     event.preventDefault();
-    runEditor();
-  }
-});
-document.querySelector("#runCommandsButton").addEventListener("click", runEditor);
-document.querySelector("#previewPromptButton").addEventListener("click", () => { prepare(); app.showPreview(); });
-document.querySelector("#copyCommandsButton").addEventListener("click", copyCommands);
-document.querySelector("#resetWorkspaceButton").addEventListener("click", () => {
-  if (!window.confirm("현재 블록을 지우고 기본 예제로 돌아갈까요?")) return;
-  workspace.clear();
-  loadDefaultWorkspace();
-  saveWorkspace();
-  prepare();
-});
-prepare();
+    const result = collectAndSave();
+    if (result.errors.length) {
+      setStatus("블록 오류를 수정해야 Text Editor로 전환할 수 있습니다.", "error");
+      return;
+    }
+    saveOperations(result.operations, "text");
+    window.location.assign("./index.html");
+  });
+  document.querySelector("#exportProjectButton").addEventListener("click", () => {
+    const result = collectAndSave();
+    if (!result.errors.length) downloadProject(currentProject);
+  });
+  document.querySelector("#importProjectInput").addEventListener("change", async (event) => {
+    try {
+      const imported = validateProject(await readProjectFile(event.target.files?.[0]));
+      operationsToBlockRecords(imported.operations);
+      operationsToWorkspace(imported.operations);
+      currentProject = updateProject(imported, imported.operations, "block");
+      saveProject(localStorage, currentProject);
+      renderInspector(currentProject.operations);
+      app.setConfig(processOperations(currentProject.operations).config);
+      outputLog.textContent = operationsToCommandText(currentProject.operations);
+      setStatus("프로젝트를 가져왔습니다.", "success");
+    } catch (error) {
+      setStatus(`프로젝트를 가져올 수 없습니다: ${error.message}`, "error");
+    } finally {
+      event.target.value = "";
+    }
+  });
+
+  initializeProject();
+}

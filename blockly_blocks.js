@@ -1,5 +1,6 @@
 /* global Blockly */
 
+if (typeof Blockly !== "undefined") {
 Blockly.defineBlocksWithJsonArray([
   {
     type: "chatbot_set_name",
@@ -74,7 +75,7 @@ Blockly.defineBlocksWithJsonArray([
   },
   {
     type: "chatbot_block_sensitive_topics",
-    message0: "민감 주제 차단 (쉼표로 구분) %1",
+    message0: "민감 주제 차단 (JSON 배열 또는 쉼표) %1",
     args0: [{ type: "field_input", name: "TOPICS", text: "정치, 종교" }],
     previousStatement: null, nextStatement: null, colour: 30,
   },
@@ -113,3 +114,4 @@ Blockly.defineBlocksWithJsonArray([
     previousStatement: null, colour: 120,
   },
 ]);
+}

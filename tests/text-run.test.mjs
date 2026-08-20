@@ -58,7 +58,9 @@ const ids = [
   "closePreview", "chatbotName", "chatContainer", "chatLog", "userInput",
   "sendMessageButton", "commandInput", "outputLog", "statusArea",
   "runCommandsButton", "previewPromptButton", "copyCommandsButton",
-  "resetExampleButton",
+  "resetExampleButton", "switchToBlock", "exportProjectButton",
+  "importProjectInput", "inspector", "inspectorState", "inspectorName",
+  "inspectorRules", "inspectorKnowledge", "inspectorTopics", "inspectorLimit",
 ];
 const elements = Object.fromEntries(ids.map((id) => [id, new FakeElement()]));
 elements.apiKey.type = "password";
@@ -71,8 +73,12 @@ globalThis.document = {
   body: new FakeElement(),
   execCommand() { return true; },
 };
+const navigations = [];
 globalThis.window = {
   confirm: () => true,
+  setTimeout,
+  clearTimeout,
+  location: { assign: (url) => navigations.push(url) },
 };
 globalThis.localStorage = new MemoryStorage();
 globalThis.sessionStorage = new MemoryStorage();
@@ -123,6 +129,56 @@ test("Ctrl+Enter uses the same Run path", async () => {
   await flush();
   assert.equal(event.defaultPrevented, true);
   assert.match(elements.statusArea.textContent, /Gemini API 키/);
+});
+
+test("Inspector updates after a debounced valid edit", async () => {
+  elements.commandInput.value = 'setName("Inspector Bot")\naddKnowledge("언어", "こんにちは 😀")';
+  elements.commandInput.dispatchEvent(new Event("input"));
+  await new Promise((resolve) => setTimeout(resolve, 450));
+  assert.equal(elements.inspectorName.textContent, "Inspector Bot");
+  assert.equal(elements.inspectorKnowledge.textContent, "1");
+  assert.match(elements.inspectorState.textContent, /up to date/);
+});
+
+test("Inspector keeps the last valid project when source contains errors", async () => {
+  elements.commandInput.value = "notARealCommand()";
+  elements.commandInput.dispatchEvent(new Event("input"));
+  await new Promise((resolve) => setTimeout(resolve, 450));
+  assert.equal(elements.inspectorName.textContent, "Inspector Bot");
+  assert.match(elements.inspectorState.textContent, /contains errors/);
+});
+
+test("valid project JSON import replaces the canonical Text view", async () => {
+  const imported = {
+    format: "ccfepub-project",
+    formatVersion: 1,
+    editorMode: "block",
+    operations: [{ type: "setName", value: "Imported Bot" }],
+    metadata: { name: "Imported Bot", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" },
+  };
+  elements.importProjectInput.files = [{ text: async () => JSON.stringify(imported) }];
+  elements.importProjectInput.dispatchEvent(new Event("change"));
+  await flush();
+  await flush();
+  assert.equal(elements.commandInput.value, 'setName("Imported Bot")');
+  assert.equal(elements.inspectorName.textContent, "Imported Bot");
+  assert.match(elements.statusArea.textContent, /가져왔습니다/);
+});
+
+test("invalid source blocks editor switching without losing the canonical project", async () => {
+  elements.commandInput.value = "notARealCommand()";
+  await click(elements.switchToBlock);
+  assert.equal(navigations.length, 0);
+  assert.match(elements.statusArea.textContent, /오류를 수정해야/);
+});
+
+test("valid source saves canonical operations before switching to Blocks", async () => {
+  elements.commandInput.value = 'setName("Switch Bot")';
+  await click(elements.switchToBlock);
+  assert.equal(navigations.at(-1), "./block.html");
+  const project = JSON.parse(localStorage.getItem("ccfepub.project.v1"));
+  assert.deepEqual(project.operations, [{ type: "setName", value: "Switch Bot" }]);
+  assert.equal(project.editorMode, "block");
 });
 
 test("API key Show, Hide, and Clear controls remain wired", async () => {
