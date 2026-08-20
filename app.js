@@ -1,9 +1,10 @@
 import { generateSystemPrompt, resolveLocalResponse } from "./engine.js";
-import { GoogleGenAI } from "https://cdn.jsdelivr.net/npm/@google/genai@1.24.0/dist/web/index.mjs";
 
 const API_KEY_STORAGE = "ccfepub.geminiApiKey";
+const GEMINI_SDK_URL = "https://cdn.jsdelivr.net/npm/@google/genai@1.24.0/dist/web/index.mjs";
+const loadGeminiSdk = () => import(GEMINI_SDK_URL);
 
-export function createChatbotApp({ onStatus }) {
+export function createChatbotApp({ onStatus, loadSdk = loadGeminiSdk }) {
   const elements = {
     apiKey: document.querySelector("#apiKey"),
     toggleKey: document.querySelector("#toggleApiKey"),
@@ -112,7 +113,7 @@ export function createChatbotApp({ onStatus }) {
     getPrompt() {
       return config ? generateSystemPrompt(config) : "";
     },
-    start() {
+    async start() {
       if (!config) return false;
       const apiKey = elements.apiKey.value.trim();
       if (!apiKey) {
@@ -121,6 +122,10 @@ export function createChatbotApp({ onStatus }) {
         return false;
       }
       try {
+        const { GoogleGenAI } = await loadSdk();
+        if (typeof GoogleGenAI !== "function") {
+          throw new Error("GoogleGenAI export is unavailable");
+        }
         const client = new GoogleGenAI({ apiKey });
         chatSession = client.chats.create({
           model: "gemini-2.5-flash",

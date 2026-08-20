@@ -1,4 +1,4 @@
-import { parseCommandText, generateSystemPrompt } from "./engine.js";
+import { parseCommandText } from "./engine.js";
 import { createChatbotApp } from "./app.js";
 
 const DRAFT_STORAGE = "ccfepub.textCommands.v2";
@@ -93,7 +93,7 @@ function configSummary(result) {
   ].join("\n");
 }
 
-function prepare({ executeActions = false } = {}) {
+function prepare() {
   const result = parseCommandText(commandInput.value);
   app.setConfig(result.config);
   const errorText = result.errors.map((error) => `Line ${error.line}: ${error.message}`).join("\n");
@@ -105,11 +105,26 @@ function prepare({ executeActions = false } = {}) {
   } else {
     setStatus(`${result.operations.length}개 명령어를 적용했습니다.`, "success");
   }
-  if (executeActions && !result.errors.length) {
-    if (result.actions.preview) app.showPreview();
-    if (result.actions.start) app.start();
-  }
   return result;
+}
+
+async function runEditor() {
+  const runButton = document.querySelector("#runCommandsButton");
+  try {
+    runButton.disabled = true;
+    const result = prepare();
+    if (result.errors.length) return;
+    if (result.actions.start && !(await app.start())) return;
+    if (result.actions.preview) app.showPreview();
+  } catch (error) {
+    console.error("Text editor Run failed:", error);
+    setStatus(
+      "실행 중 오류가 발생했습니다. 브라우저 console의 진단 정보를 확인해 주세요.",
+      "error",
+    );
+  } finally {
+    runButton.disabled = false;
+  }
 }
 
 async function copyText(text, successMessage) {
@@ -143,10 +158,10 @@ commandInput.addEventListener("input", () => {
 commandInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
     event.preventDefault();
-    prepare({ executeActions: true });
+    runEditor();
   }
 });
-document.querySelector("#runCommandsButton").addEventListener("click", () => prepare({ executeActions: true }));
+document.querySelector("#runCommandsButton").addEventListener("click", runEditor);
 document.querySelector("#previewPromptButton").addEventListener("click", () => {
   const result = prepare();
   if (!result.errors.length) app.showPreview();

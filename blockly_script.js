@@ -119,7 +119,7 @@ function collectOperations() {
   return { operations, unknown };
 }
 
-function prepare({ executeActions = false } = {}) {
+function prepare() {
   const { operations, unknown } = collectOperations();
   lastOperations = operations;
   const result = processOperations(operations);
@@ -128,11 +128,25 @@ function prepare({ executeActions = false } = {}) {
   outputLog.textContent = commands || "연결된 챗봇 블록이 없습니다.";
   if (unknown.length) setStatus(`지원하지 않는 블록을 건너뛰었습니다: ${[...new Set(unknown)].join(", ")}`, "warning");
   else setStatus(`${operations.length}개 블록을 공통 엔진에 적용했습니다.`, "success");
-  if (executeActions) {
-    if (result.actions.preview) app.showPreview();
-    if (result.actions.start) app.start();
-  }
   return result;
+}
+
+async function runEditor() {
+  const runButton = document.querySelector("#runCommandsButton");
+  try {
+    runButton.disabled = true;
+    const result = prepare();
+    if (result.actions.start && !(await app.start())) return;
+    if (result.actions.preview) app.showPreview();
+  } catch (error) {
+    console.error("Block editor Run failed:", error);
+    setStatus(
+      "실행 중 오류가 발생했습니다. 브라우저 console의 진단 정보를 확인해 주세요.",
+      "error",
+    );
+  } finally {
+    runButton.disabled = false;
+  }
 }
 
 async function copyCommands() {
@@ -155,10 +169,10 @@ window.addEventListener("resize", () => Blockly.svgResize(workspace));
 document.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
     event.preventDefault();
-    prepare({ executeActions: true });
+    runEditor();
   }
 });
-document.querySelector("#runCommandsButton").addEventListener("click", () => prepare({ executeActions: true }));
+document.querySelector("#runCommandsButton").addEventListener("click", runEditor);
 document.querySelector("#previewPromptButton").addEventListener("click", () => { prepare(); app.showPreview(); });
 document.querySelector("#copyCommandsButton").addEventListener("click", copyCommands);
 document.querySelector("#resetWorkspaceButton").addEventListener("click", () => {
