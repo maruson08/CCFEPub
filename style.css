@@ -135,3 +135,29 @@ input:focus, textarea:focus, button:focus-visible, a:focus-visible { outline: 3p
   .project-actions .button { width: 100%; }
   .inspector-grid dd { max-width: 150px; }
 }
+
+
+/* Release candidate product states */
+.project-identity { min-width: 0; display: grid !important; grid-template-columns: auto minmax(0, auto) auto; align-items: baseline; gap: 8px !important; }
+.project-identity > span { color: var(--accent); font-size: .66rem; font-weight: 800; letter-spacing: .1em; }
+.project-identity > strong { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-identity > small { color: var(--muted); font-size: .74rem; white-space: nowrap; }
+.message { white-space: pre-wrap; }
+.dialog-help { margin: -8px 0 14px; color: var(--muted); font-size: .8rem; }
+.preview-dialog .section-heading { position: sticky; top: -24px; z-index: 1; padding: 18px 0 10px; background: var(--surface); }
+.chat-area[data-runtime-state="Configuration changed. Run again"] { border-color: #d49b44; }
+
+@media (max-width: 760px) {
+  .project-actions { align-items: stretch; flex-direction: column; }
+  .project-actions > .toolbar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .project-actions > .toolbar .button { width: 100%; padding-inline: 8px; }
+}
+
+@media (max-width: 520px) {
+  .project-identity { grid-template-columns: auto minmax(0, 1fr); }
+  .project-identity > small { grid-column: 1 / -1; }
+  .project-actions > .toolbar { grid-template-columns: 1fr 1fr; }
+  .preview-dialog { padding: 18px; }
+  .preview-dialog .section-heading { top: -18px; }
+  .preview-dialog .section-heading .toolbar { width: 100%; }
+}
