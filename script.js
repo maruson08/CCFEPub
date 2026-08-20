@@ -1,6 +1,7 @@
 import { operationsToCommandText, parseCommandText, processOperations } from "./engine.js";
 import { createChatbotApp } from "./app.js";
 import { operationsToBlockRecords } from "./block_mapping.js";
+import { DEFAULT_EXAMPLE_SOURCE } from "./examples.js";
 import {
   createProject,
   migrateLegacyProject,
@@ -17,53 +18,6 @@ const runButton = document.querySelector("#runCommandsButton");
 let currentProject = null;
 let inspectorTimer = null;
 
-const examples = {
-  basic: `// 챗봇의 기본 정보, 성격, 말투를 설정합니다.
-setName("AI 친구")
-setRole("다정하고 호기심 많은 대화 상대")
-setPersonality("친절하고 때로는 농담을 던지는")
-setTone("편안하고 친구같은 말투")
-whenUserSays("안녕").reply("안녕하세요! 무엇을 도와드릴까요?")
-whenUserIncludes("이름").reply("제 이름은 AI 친구입니다.")
-blockPersonalInfo()
-blockSensitiveTopics(["정치", "종교"])
-safeReply("죄송하지만, 그 주제에 대해서는 이야기할 수 없어요.")
-limitLength(100)
-useEmoji(False)
-addKnowledge("제작자", "세종과학고 동아리 Realize가 만들었어요.")
-showSystemPrompt()
-startChatbot()`,
-  professional: `setName("컨설턴트 봇")
-setRole("비즈니스 및 기술 컨설턴트")
-setPersonality("논리적이고 분석적인")
-setTone("전문적이고 정중한")
-whenUserIncludes("기술").reply("최신 기술 트렌드를 함께 살펴보겠습니다.")
-blockPersonalInfo()
-blockSensitiveTopics(["정치", "종교", "성적인 농담"])
-limitLength(150)
-useEmoji(False)
-showSystemPrompt()
-startChatbot()`,
-  boyfriend: `setName("지니")
-setRole("나의 AI 남자친구")
-setPersonality("다정하고 유머러스한")
-setTone("따뜻하고 친근한 말투")
-whenUserSays("사랑해").reply("나도 사랑해! 오늘은 우리 뭐할까?")
-blockSensitiveTopics(["정치", "종교"])
-useEmoji(True)
-showSystemPrompt()
-startChatbot()`,
-  girlfriend: `setName("지니")
-setRole("나의 AI 여자친구")
-setPersonality("다정하고 애교가 많은")
-setTone("사랑스럽고 친근한 말투")
-whenUserSays("사랑해").reply("나도 사랑해! 오늘은 우리 뭐할까?")
-blockSensitiveTopics(["정치", "종교"])
-useEmoji(True)
-showSystemPrompt()
-startChatbot()`,
-};
-
 function setStatus(message, kind = "info") {
   const icons = { success: "✓", error: "⚠", warning: "⚠", info: "•" };
   statusArea.className = `status ${kind}`;
@@ -77,7 +31,7 @@ function saveOperations(operations, editorMode = "text") {
     ? updateProject(currentProject, operations, editorMode)
     : createProject(operations, { editorMode });
   try { saveProject(localStorage, currentProject); }
-  catch { setStatus("프로젝트를 브라우저에 저장하지 못했습니다.", "warning"); }
+  catch { setStatus("프로젝트를 브라우저에 저장하지 못했지만 현재 편집은 계속할 수 있습니다.", "warning"); }
   renderInspector(currentProject.operations);
   app.setConfig(processOperations(currentProject.operations).config);
   return currentProject;
@@ -85,6 +39,7 @@ function saveOperations(operations, editorMode = "text") {
 
 function configSummary(result) {
   const { config } = result;
+  if (!result.operations.length) return "Blank project\nAdd commands or choose Load Example to begin.";
   return [
     `Name: ${config.name}`,
     `Role: ${config.role}`,
@@ -102,7 +57,7 @@ function parseEditor({ report = true } = {}) {
     if (report) {
       const errors = result.errors.map((error) => `Line ${error.line}: ${error.message}`).join("\n");
       outputLog.textContent = errors;
-      setStatus(errors, "error");
+      app.setError(errors);
     }
     return result;
   }
@@ -117,15 +72,21 @@ function parseEditor({ report = true } = {}) {
 async function runEditor() {
   try {
     runButton.disabled = true;
+    runButton.textContent = "Running…";
+    app.setValidating();
     const result = parseEditor();
     if (result.errors.length) return;
-    if (result.actions.start && !(await app.start())) return;
+    if (result.actions.start) {
+      if (!(await app.start())) return;
+    } else {
+      app.setIdle("설정은 유효하지만 startChatbot() 명령이 없습니다.");
+    }
     if (result.actions.preview) app.showPreview();
   } catch (error) {
-    console.error("Text editor Run failed:", error);
     setStatus(`실행 중 오류가 발생했습니다: ${error.message}`, "error");
   } finally {
     runButton.disabled = false;
+    runButton.textContent = "Run";
   }
 }
 
@@ -136,6 +97,27 @@ async function copyText(text, message) {
   } catch {
     setStatus("클립보드 복사에 실패했습니다.", "error");
   }
+}
+
+function hasProjectContent() {
+  return Boolean(currentProject?.operations.length || commandInput.value.trim());
+}
+
+function confirmReplacement(message) {
+  return !hasProjectContent() || window.confirm(message);
+}
+
+function replaceProject(operations, message) {
+  const candidate = createProject(operations, { editorMode: "text" });
+  try { saveProject(localStorage, candidate); }
+  catch { setStatus("프로젝트를 저장하지 못했지만 현재 편집은 계속할 수 있습니다.", "warning"); }
+  currentProject = candidate;
+  commandInput.value = operationsToCommandText(operations);
+  renderInspector(operations);
+  app.setConfig(processOperations(operations).config);
+  outputLog.textContent = operations.length ? configSummary({ operations, ...processOperations(operations) }) : "Blank project\nAdd commands or choose Load Example to begin.";
+  setStatus(message, "success");
+  commandInput.focus();
 }
 
 function initializeProject() {
@@ -150,17 +132,20 @@ function initializeProject() {
   }
   currentProject = migration.project;
   if (!currentProject) {
-    const initial = parseCommandText(examples.basic);
-    currentProject = createProject(initial.operations, { editorMode: "text" });
+    currentProject = createProject([], { editorMode: "text" });
     if (!migration.blocked) {
-      try { saveProject(localStorage, currentProject); } catch { /* Storage can be unavailable. */ }
+      try { saveProject(localStorage, currentProject); } catch { /* Storage is an optional boundary. */ }
     }
   }
   commandInput.value = operationsToCommandText(currentProject.operations);
   renderInspector(currentProject.operations);
-  app.setConfig(parseCommandText(commandInput.value).config);
+  app.setConfig(processOperations(currentProject.operations).config);
+  outputLog.textContent = currentProject.operations.length
+    ? configSummary(processOperations(currentProject.operations))
+    : "Blank project\nAdd commands or choose Load Example to begin.";
   if (migration.migratedFrom) setStatus("기존 Text 작업을 project format v1으로 이전했습니다.", "success");
   else if (migration.warnings?.length) setStatus(migration.warnings.join("\n"), "warning");
+  else setStatus(currentProject.operations.length ? "Idle · 프로젝트를 편집하거나 Run을 눌러 Test Chat을 시작하세요." : "Idle · 새 프로젝트입니다. 명령어를 추가하거나 예제를 불러오세요.");
 }
 
 commandInput.addEventListener("input", () => {
@@ -179,19 +164,14 @@ document.querySelector("#previewPromptButton").addEventListener("click", () => {
   if (!result.errors.length) app.showPreview();
 });
 document.querySelector("#copyCommandsButton").addEventListener("click", () => copyText(commandInput.value, "명령어를 복사했습니다."));
-document.querySelector("#resetExampleButton").addEventListener("click", () => {
-  if (!window.confirm("현재 프로젝트를 지우고 기본 예제로 돌아갈까요?")) return;
-  commandInput.value = examples.basic;
-  currentProject = null;
-  parseEditor();
-  commandInput.focus();
+document.querySelector("#newProjectButton").addEventListener("click", () => {
+  if (!confirmReplacement("현재 프로젝트를 지우고 새 프로젝트를 만들까요?")) return;
+  replaceProject([], "새 프로젝트를 만들었습니다. API 키는 유지됩니다.");
 });
-document.querySelectorAll(".example-button").forEach((button) => {
-  button.addEventListener("click", () => {
-    if (!window.confirm("현재 프로젝트를 선택한 예제로 바꿀까요?")) return;
-    commandInput.value = examples[button.dataset.example];
-    parseEditor();
-  });
+document.querySelector("#loadExampleButton").addEventListener("click", () => {
+  if (!confirmReplacement("현재 프로젝트를 학습 도우미 예제로 바꿀까요?")) return;
+  const example = parseCommandText(DEFAULT_EXAMPLE_SOURCE);
+  replaceProject(example.operations, "학습 도우미 예제를 불러왔습니다.");
 });
 document.querySelector("#switchToBlock").addEventListener("click", (event) => {
   event.preventDefault();
@@ -214,16 +194,21 @@ document.querySelector("#exportProjectButton").addEventListener("click", () => {
 });
 document.querySelector("#importProjectInput").addEventListener("change", async (event) => {
   try {
-    const imported = validateProject(await readProjectFile(event.target.files?.[0]));
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!confirmReplacement("현재 프로젝트를 가져온 프로젝트로 바꿀까요?")) return;
+    const imported = validateProject(await readProjectFile(file));
     const text = operationsToCommandText(imported.operations);
-    currentProject = updateProject(imported, imported.operations, "text");
-    saveProject(localStorage, currentProject);
+    const candidate = updateProject(imported, imported.operations, "text");
+    saveProject(localStorage, candidate);
+    currentProject = candidate;
     commandInput.value = text;
-    renderInspector(currentProject.operations);
-    app.setConfig(parseCommandText(text).config);
+    renderInspector(candidate.operations);
+    app.setConfig(processOperations(candidate.operations).config);
+    outputLog.textContent = configSummary({ operations: candidate.operations, ...processOperations(candidate.operations) });
     setStatus("프로젝트를 가져왔습니다.", "success");
   } catch (error) {
-    setStatus(`프로젝트를 가져올 수 없습니다: ${error.message}`, "error");
+    setStatus(`프로젝트를 가져올 수 없습니다. 현재 프로젝트는 유지됩니다: ${error.message}`, "error");
   } finally {
     event.target.value = "";
   }

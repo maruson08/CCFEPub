@@ -4,48 +4,26 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="텍스트와 블록으로 하나의 AI 챗봇 프로젝트를 만드는 교육용 편집기" />
-    <title>CCFEPub · Text Editor</title>
+    <title>CCFEPub v2 RC · Text Editor</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
     <header class="site-header">
-      <a class="brand" href="./index.html" aria-label="CCFEPub 홈">CCFEPub <span>v2 editor</span></a>
-      <nav class="mode-tabs" aria-label="프로젝트 편집 모드">
-        <a class="active" href="./index.html" aria-current="page">Text Editor</a>
-        <a id="switchToBlock" href="./block.html">Block Editor</a>
-      </nav>
+      <a class="brand" href="./index.html" aria-label="CCFEPub 홈">CCFEPub <span>v2 release candidate</span></a>
+      <nav class="mode-tabs" aria-label="프로젝트 편집 모드"><a class="active" href="./index.html" aria-current="page">Text Editor</a><a id="switchToBlock" href="./block.html">Block Editor</a></nav>
     </header>
     <main class="app-shell">
-      <section class="intro" aria-labelledby="pageTitle">
-        <p class="eyebrow">BUILD · INSPECT · TEST</p>
-        <h1 id="pageTitle">하나의 프로젝트, 두 가지 편집 방식.</h1>
-        <p>Text와 Blocks 사이를 오가며 같은 canonical chatbot project를 편집하세요.</p>
-      </section>
-      <section class="api-bar" aria-labelledby="apiKeyTitle">
-        <div><h2 id="apiKeyTitle">Gemini API Key</h2><p>키는 현재 세션에만 보관되며 project JSON에는 포함되지 않습니다.</p></div>
-        <div class="api-controls"><label class="sr-only" for="apiKey">Gemini API Key</label><input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="API key" /><button id="toggleApiKey" class="button secondary" type="button" aria-pressed="false">Show</button><button id="clearApiKey" class="button ghost" type="button">Clear</button></div>
-      </section>
-      <section class="project-actions" aria-label="프로젝트 파일 작업">
-        <div><strong>Project format v1</strong><span>자동 저장됨</span></div>
-        <div class="toolbar"><button id="exportProjectButton" class="button secondary" type="button">Export Project</button><label class="button secondary file-button" for="importProjectInput">Import Project</label><input id="importProjectInput" class="sr-only" type="file" accept=".json,.ccfepub.json,application/json" /></div>
-      </section>
+      <section class="intro" aria-labelledby="pageTitle"><p class="eyebrow">BUILD · INSPECT · TEST</p><h1 id="pageTitle">하나의 프로젝트, 두 가지 편집 방식.</h1><p>명령어를 작성하고 설정을 확인한 뒤, 실제 Test Chat으로 동작을 검증하세요.</p></section>
+      <section class="api-bar" aria-labelledby="apiKeyTitle"><div><h2 id="apiKeyTitle">Gemini API Key</h2><p>키는 현재 세션에만 보관되며 project JSON에는 포함되지 않습니다.</p></div><div class="api-controls"><label class="sr-only" for="apiKey">Gemini API Key</label><input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="API key" /><button id="toggleApiKey" class="button secondary" type="button" aria-pressed="false">Show</button><button id="clearApiKey" class="button ghost" type="button">Clear</button></div></section>
+      <section class="project-actions" aria-label="프로젝트 작업"><div class="project-identity"><span>Project format v1</span><strong id="projectName">AI 친구</strong><small>자동 저장</small></div><div class="toolbar"><button id="newProjectButton" class="button secondary" type="button">New Project</button><button id="loadExampleButton" class="button secondary" type="button">Load Example</button><button id="exportProjectButton" class="button secondary" type="button">Export</button><label class="button secondary file-button" for="importProjectInput">Import</label><input id="importProjectInput" class="sr-only" type="file" accept=".json,.ccfepub.json,application/json" /></div></section>
       <section class="workspace-grid">
-        <div class="editor-pane" aria-labelledby="editorTitle">
-          <div class="section-heading"><div><p class="eyebrow">1 · BUILD</p><h2 id="editorTitle">Chatbot commands</h2></div><span class="shortcut">Ctrl / ⌘ + Enter</span></div>
-          <label class="sr-only" for="commandInput">챗봇 명령어</label><textarea id="commandInput" rows="22" spellcheck="false" aria-describedby="editorHelp"></textarea><p id="editorHelp" class="helper">유효한 변경은 project format v1에 자동 반영됩니다. 오류가 있으면 마지막 유효 상태를 보존합니다.</p>
-          <div class="toolbar" aria-label="편집기 작업"><button id="runCommandsButton" class="button primary" type="button">Run</button><button id="copyCommandsButton" class="button secondary" type="button">Copy commands</button><button id="resetExampleButton" class="button ghost" type="button">Reset example</button></div>
-          <div class="example-row" aria-label="예제 선택"><span>Examples</span><button class="text-link example-button" type="button" data-example="basic">Basic</button><button class="text-link example-button" type="button" data-example="professional">Professional</button><button class="text-link example-button" type="button" data-example="boyfriend">Boyfriend</button><button class="text-link example-button" type="button" data-example="girlfriend">Girlfriend</button></div>
-        </div>
-        <aside class="result-pane" aria-labelledby="inspectorTitle">
-          <div class="section-heading"><div><p class="eyebrow">2 · INSPECT</p><h2 id="inspectorTitle">Project Inspector</h2></div><button id="previewPromptButton" class="button secondary" type="button">System prompt</button></div>
-          <section id="inspector" class="inspector" aria-live="polite"><p id="inspectorState" class="inspector-state">Canonical project is up to date.</p><dl class="inspector-grid"><div><dt>Name</dt><dd id="inspectorName">AI 친구</dd></div><div><dt>Rules</dt><dd id="inspectorRules">0</dd></div><div><dt>Knowledge</dt><dd id="inspectorKnowledge">0</dd></div><div><dt>Sensitive topics</dt><dd id="inspectorTopics">0</dd></div><div><dt>Response limit</dt><dd id="inspectorLimit">None</dd></div></dl></section>
-          <div class="test-heading"><p class="eyebrow">3 · TEST</p><h2>Configuration status</h2></div>
-          <div id="statusArea" class="status success" role="status" aria-live="polite">✓ Ready</div><pre id="outputLog" class="output-log" aria-live="polite">Run을 누르면 canonical project 결과가 표시됩니다.</pre>
-        </aside>
+        <div class="editor-pane" aria-labelledby="editorTitle"><div class="section-heading"><div><p class="eyebrow">1 · BUILD</p><h2 id="editorTitle">Chatbot commands</h2></div><span class="shortcut">Ctrl / ⌘ + Enter</span></div><label class="sr-only" for="commandInput">챗봇 명령어</label><textarea id="commandInput" rows="22" spellcheck="false" aria-describedby="editorHelp" placeholder="명령어를 입력하거나 Load Example로 시작하세요."></textarea><p id="editorHelp" class="helper">유효한 변경은 자동 저장됩니다. 오류가 있으면 마지막 유효 프로젝트를 보존합니다.</p><div class="toolbar" aria-label="편집기 작업"><button id="runCommandsButton" class="button primary" type="button">Run</button><button id="copyCommandsButton" class="button secondary" type="button">Copy commands</button></div></div>
+        <aside class="result-pane" aria-labelledby="inspectorTitle"><div class="section-heading"><div><p class="eyebrow">2 · INSPECT</p><h2 id="inspectorTitle">Project Inspector</h2></div><button id="previewPromptButton" class="button secondary" type="button">System prompt</button></div><section id="inspector" class="inspector" aria-live="polite"><p id="inspectorState" class="inspector-state">Blank project. Add commands or load the example to begin.</p><dl class="inspector-grid"><div><dt>Name</dt><dd id="inspectorName">AI 친구</dd></div><div><dt>Rules</dt><dd id="inspectorRules">0</dd></div><div><dt>Knowledge</dt><dd id="inspectorKnowledge">0</dd></div><div><dt>Sensitive topics</dt><dd id="inspectorTopics">0</dd></div><div><dt>Response limit</dt><dd id="inspectorLimit">None</dd></div></dl></section><div class="test-heading"><p class="eyebrow">3 · TEST</p><h2>Runtime status</h2></div><div id="statusArea" class="status info" role="status" aria-live="polite">• Idle · 새 프로젝트입니다.</div><pre id="outputLog" class="output-log" aria-live="polite">Blank project
+Add commands or choose Load Example to begin.</pre></aside>
       </section>
-      <section class="chat-area hidden" id="chatContainer" aria-labelledby="chatTitle"><div class="section-heading"><div><p class="eyebrow">TEST CHAT</p><h2 id="chatTitle"><span id="chatbotName">AI 친구</span>와 대화</h2></div></div><div class="chat-log" id="chatLog" aria-live="polite"></div><div class="chat-input"><label class="sr-only" for="userInput">메시지</label><input type="text" id="userInput" placeholder="AI 친구에게 말을 걸어보세요…" disabled /><button id="sendMessageButton" class="button primary" type="button" disabled>Send</button></div></section>
+      <section class="chat-area hidden" id="chatContainer" aria-labelledby="chatTitle"><div class="section-heading"><div><p class="eyebrow">TEST CHAT</p><h2 id="chatTitle"><span id="chatbotName">AI 친구</span>와 대화</h2></div><button id="clearChatButton" class="button ghost" type="button">Clear Chat</button></div><div class="chat-log" id="chatLog" aria-live="polite"></div><div class="chat-input"><label class="sr-only" for="userInput">메시지</label><input type="text" id="userInput" placeholder="메시지를 입력하세요…" disabled /><button id="sendMessageButton" class="button primary" type="button" disabled>Send</button></div></section>
     </main>
-    <dialog id="previewDialog" class="preview-dialog" aria-labelledby="previewTitle"><div class="section-heading"><h2 id="previewTitle">System prompt preview</h2><button id="closePreview" class="button ghost" type="button">Close</button></div><pre id="promptPreview"></pre></dialog>
+    <dialog id="previewDialog" class="preview-dialog" aria-labelledby="previewTitle"><div class="section-heading"><div><p class="eyebrow">GENERATED CONFIGURATION</p><h2 id="previewTitle">System prompt preview</h2></div><div class="toolbar"><button id="copyPromptButton" class="button secondary" type="button">Copy prompt</button><button id="closePreview" class="button ghost" type="button">Close</button></div></div><p class="dialog-help">이 prompt는 현재 프로젝트 설정에서 생성됩니다. API 키는 포함되지 않습니다.</p><pre id="promptPreview"></pre></dialog>
     <script type="module" src="./script.js"></script>
   </body>
 </html>
