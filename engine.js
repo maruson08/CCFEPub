@@ -274,7 +274,11 @@ function commandToOperation(text) {
     return { type: call.name === "showSystemPrompt" ? "preview" : "start" };
   }
   if (call.name === "callAPI" || call.name === "testDialogue") {
-    return { type: "notice", message: `${call.name}은 현재 웹 앱에서 직접 실행되지 않습니다.` };
+    return {
+      type: "notice",
+      command: text,
+      message: `${call.name}은 현재 웹 앱에서 직접 실행되지 않습니다.`,
+    };
   }
   throw new Error(`알 수 없는 명령어 "${call.name}"`);
 }
@@ -343,7 +347,8 @@ export function operationToCommand(operation) {
     }
     case "preview": return "showSystemPrompt()";
     case "start": return "startChatbot()";
-    default: return "";
+    case "notice": return operation.command;
+    default: throw new Error(`Operation "${operation.type}" cannot be serialized to text.`);
   }
 }
 
